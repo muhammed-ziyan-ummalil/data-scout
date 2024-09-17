@@ -1,4 +1,4 @@
-Flask v2.3.2
-spaCy v3.7.5
-Thinc 8.2.2
-nltk 3.8.1
+Flask==2.3.2
+spaCy==3.7.5
+Thinc==8.2.2
+nltk==3.8.1
