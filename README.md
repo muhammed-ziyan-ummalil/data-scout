@@ -16,19 +16,19 @@ Data Scout is a Natural Language to SQL chatbot designed to convert user queries
 
 Before you start, ensure you have the following installed:
 
-- [Python](https://www.python.org/downloads/) (version 3.8 or higher)
-- [Flask](https://flask.palletsprojects.com/) for backend development
-- [spaCy](https://spacy.io/) or another NLP library
+- Python (version 3.8 or higher)
+- Flask for backend development
+- spaCy or another NLP library
 - A SQL database (e.g., MySQL, PostgreSQL)
 
 ### Installation
 
 1. Clone the repository:
 
-   
-   git clone https://github.com/y](https://github.com/muhammed-ziyan-ummalil/data-scout
+
+   git clone https://github.com/muhammed-ziyan-ummalil/data-scout
    cd data-scout
-   
+
 
 2. Install the necessary dependencies:
 
@@ -36,14 +36,14 @@ Before you start, ensure you have the following installed:
    pip install -r requirements.txt
 
 
-3. Set up your database and update the connection details in the configuration file.
+3. Set up your database and update the connection details in the configuration file (`main/config.py`).
 
 ### Usage
 
 1. Start the Flask server:
 
 
-   python app.py
+   python main/data_scout.py
 
 
 2. Open your browser and navigate to `http://localhost:5000`.
@@ -58,10 +58,11 @@ Before you start, ensure you have the following installed:
 
 ## Project Structure
 
-- `app.py` - Main backend logic for handling chatbot interactions and SQL execution.
-- `templates/` - Frontend HTML files for the chatbot interface.
-- `static/` - CSS and JavaScript files for styling and chatbot interactions.
-- `requirements.txt` - List of dependencies required to run Data Scout.
+- **`main/data_scout.py`** - Main script to run the application.
+- **`main/config.py`** - Configuration settings for the application.
+- **`main/database.py`** - Database connection and query handling.
+- **`main/nlp.py`** - NLP processing and query understanding.
+- **`requirements.txt`** - List of dependencies required to run Data Scout.
 
 ## Future Enhancements
 
@@ -75,17 +76,17 @@ We welcome contributions! Please follow these steps:
 
 1. Fork the repo.
 2. Create a new branch: `git checkout -b feature-name`.
-3. Make your changes and commit them: `git commit -m 'Add new feature'`.
+3. Make and commit your changes: `git commit -m 'Add new feature'`.
 4. Push to the branch: `git push origin feature-name`.
 5. Submit a pull request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Contact
 
 For any inquiries, feel free to reach out:
 
-- Email: mziyan777.mz@gmail.com
-- GitHub: github.com/muhammed-ziyan-ummalil
+- **Email**: mziyan777.mz@gmail.com
+- **GitHub**: [github.com/muhammed-ziyan-ummalil](https://github.com/muhammed-ziyan-ummalil)
