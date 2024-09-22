@@ -1,5 +1,0 @@
-Flask==3.0.3
-spacy==3.7.6
-thinc==8.2.3
-nltk==3.8.1
-numpy==1.26.4
