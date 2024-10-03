@@ -71,6 +71,7 @@
         }
         .results h2 {
             margin-bottom: 15px;
+            display: none; /* Initially hidden */
         }
         .results ul {
             list-style: none;
@@ -81,23 +82,15 @@
             background-color: #2A2A3D;
             border-radius: 8px;
             margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-        }
-        .result-item img {
-            width: 100px;
-            height: 100px;
-            object-fit: cover;
-            border-radius: 8px;
-            margin-right: 15px;
-        }
-        .result-info {
-            flex-grow: 1;
         }
         .result-info strong {
             color: #FF8C00;
             display: block;
             margin-bottom: 5px;
+        }
+        .result-info span {
+            display: block;
+            margin-bottom: 3px;
         }
         .search-container {
             padding: 20px;
@@ -170,7 +163,7 @@
             <div class="loading-indicator" id="loading-indicator">Searching...</div>
 
             <div class="results" id="results">
-                <h2>Results:</h2>
+                <h2 id="results-heading" style="display: none;">Results:</h2>
                 <ul id="results-list">
                     <!-- Search results will be inserted here -->
                 </ul>
@@ -250,6 +243,7 @@
         function resetChat() {
             document.getElementById('query-input').value = '';
             document.getElementById('results-list').innerHTML = '';
+            document.getElementById('results-heading').style.display = 'none';
             loadChatHistory();
         }
 
@@ -262,9 +256,11 @@
         function performSearch(query) {
             const loadingIndicator = document.getElementById('loading-indicator');
             const resultsList = document.getElementById('results-list');
+            const resultsHeading = document.getElementById('results-heading');
             
             loadingIndicator.style.display = 'block';
             resultsList.innerHTML = '';
+            resultsHeading.style.display = 'none';
 
             const timeoutId = setTimeout(() => {
                 loadingIndicator.textContent = 'This is taking longer than expected. Please wait...';
@@ -286,6 +282,7 @@
             })
             .then(data => {
                 loadingIndicator.style.display = 'none';
+                resultsHeading.style.display = 'block';
                 displayResults(data.results);
             })
             .catch(error => {
@@ -298,26 +295,24 @@
 
         function displayResults(results) {
             const resultsList = document.getElementById('results-list');
+            const resultsHeading = document.getElementById('results-heading');
             resultsList.innerHTML = '';
 
             if (!results || results.length === 0) {
                 resultsList.innerHTML = '<li class="result-item">No results found</li>';
+                resultsHeading.style.display = 'block';
                 return;
             }
 
+            resultsHeading.style.display = 'block';
             results.forEach(product => {
                 const li = document.createElement('li');
                 li.className = 'result-item';
-                
-                const imageHTML = product.image_url ? 
-                    `<img src="${product.image_url}" alt="${product.name}" loading="lazy">` : 
-                    `<img src="/api/placeholder/100/100" alt="No image available">`;
                 
                 const price = product.price !== 'N/A' ? product.price : 'Price Not Available';
                 const rating = product.overall_rating !== 'N/A' ? product.overall_rating : 'Rating Not Available';
 
                 li.innerHTML = `
-                    ${imageHTML}
                     <div class="result-info">
                         <strong>${product.name}</strong>
                         <span>Category: ${product.categories}</span>
@@ -331,6 +326,8 @@
 
         function displayError(message) {
             const resultsList = document.getElementById('results-list');
+            const resultsHeading = document.getElementById('results-heading');
+            resultsHeading.style.display = 'block';
             resultsList.innerHTML = `<li class="result-item">Error: ${message}</li>`;
         }
     </script>
