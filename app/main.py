@@ -7,6 +7,7 @@ from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 import logging
 from functools import lru_cache
+from concurrent.futures import ThreadPoolExecutor
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -28,6 +29,9 @@ db = client[db_name]
 
 # Cache the stopwords
 STOP_WORDS = set(stopwords.words('english'))
+
+# Create a thread pool
+executor = ThreadPoolExecutor(max_workers=4)
 
 @lru_cache(maxsize=1000)
 def process_natural_language(query):
@@ -94,9 +98,12 @@ def search():
     if not query_info:
         return jsonify({"results": [], "message": "Invalid query"}), 400
     
-    # Query MongoDB
-    products = query_products_mongo(query_info)
-    formatted_products = [format_product(product) for product in products]
+    # Query MongoDB asynchronously
+    future = executor.submit(query_products_mongo, query_info)
+    products = future.result()
+    
+    # Format products asynchronously
+    formatted_products = list(executor.map(format_product, products))
     
     response = {
         "results": formatted_products,
