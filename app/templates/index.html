@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataScout - Natural Language Product Search</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            background-color: #1E1E2F;
+            color: #ffffff;
+        }
+        .sidebar {
+            width: 20%;
+            background-color: #2A2A3D;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar h2 {
+            color: #F3BA2F;
+        }
+        .chat-session {
+            list-style: none;
+            padding: 0;
+            margin-top: 10px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        .chat-session li {
+            margin-bottom: 10px;
+            cursor: pointer;
+            padding: 10px;
+            background-color: #333;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .chat-session li:hover, .chat-session li.active {
+            background-color: #FF8C00;
+        }
+        .chat-session li span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .chat-session li.active span {
+            font-weight: bold;
+        }
+        .container {
+            width: 80%;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            overflow-y: auto;
+        }
+        .logo {
+            margin-bottom: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .logo img {
+            max-width: 120px;
+        }
+        .logo h1 {
+            color: #FF8C00;
+            font-weight: bold;
+        }
+        .search-box {
+            width: 100%;
+            max-width: 600px;
+            margin: 20px 0;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2em;
+            border-radius: 8px;
+            border: none;
+            background-color: #2A2A3D;
+            color: #ffffff;
+        }
+        input[type="submit"], .clear-history {
+            padding: 12px 25px;
+            background-color: #FF8C00;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        input[type="submit"]:hover, .clear-history:hover {
+            background-color: #f57c00;
+        }
+        .start-new-chat, .clear-history {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #FF8C00;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .start-new-chat:hover, .clear-history:hover {
+            background-color: #f57c00;
+        }
+        .results {
+            width: 100%;
+            margin-top: 30px;
+        }
+        .results ul {
+            list-style: none;
+            padding: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .results li {
+            padding: 15px;
+            background-color: #2A2A3D;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+        }
+        .results li strong {
+            color: #FF8C00;
+            margin-bottom: 10px;
+        }
+        .results li img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>DataScout</h2>
+        <ul id="chat-history" class="chat-session">
+            <!-- Chat sessions (queries) will appear here -->
+        </ul>
+        <button class="start-new-chat" id="start-new-chat">Start New Chat</button>
+        <button class="clear-history" id="clear-history">Clear History</button>
+    </div>
+
+    <div class="container">
+        <div class="logo">
+            <img src="/api/placeholder/120/120" alt="DataScout Logo">
+            <h1>Search <span style="color:#FF8C00;">Less</span>, Find <span style="color:#FF8C00;">More</span></h1>
+        </div>
+        
+        <div class="search-box">
+            <form id="search-form" method="POST" action="/search">
+                <input type="text" id="query-input" name="query" placeholder="Describe the product you're looking for..." required>
+                <input type="submit" value="Search">
+            </form>
+        </div>
+
+        <div class="results" id="results">
+            <h2>Results:</h2>
+            <ul id="results-list">
+                <!-- Search results will be inserted here -->
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadChatHistory();
+
+            // Handle form submission
+            document.getElementById('search-form').addEventListener('submit', function(event) {
+                event.preventDefault();
+                const query = document.getElementById('query-input').value;
+                saveChatHistory(query);
+                performSearch(query);
+            });
+
+            // Handle start new chat button
+            document.getElementById('start-new-chat').addEventListener('click', function() {
+                resetChat();
+            });
+
+            // Handle clear history button
+            document.getElementById('clear-history').addEventListener('click', function() {
+                clearChatHistory();
+            });
+        });
+
+        function loadChatHistory() {
+            const chatHistory = JSON.parse(localStorage.getItem('chatHistory')) || [];
+            const chatSession = document.getElementById('chat-history');
+            chatSession.innerHTML = '';
+
+            chatHistory.forEach((query, index) => {
+                const li = document.createElement('li');
+                li.textContent = query;
+                li.addEventListener('click', () => loadPreviousQuery(index));
+                chatSession.appendChild(li);
+            });
+        }
+
+        function saveChatHistory(query) {
+            const chatHistory = JSON.parse(localStorage.getItem('chatHistory')) || [];
+            if (!chatHistory.includes(query)) {
+                chatHistory.push(query);
+                localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+            }
+            loadChatHistory();
+        }
+
+        function loadPreviousQuery(index) {
+            const chatHistory = JSON.parse(localStorage.getItem('chatHistory'));
+            document.getElementById('query-input').value = chatHistory[index];
+            performSearch(chatHistory[index]);
+        }
+
+        function resetChat() {
+            document.getElementById('query-input').value = '';
+            document.getElementById('results-list').innerHTML = '';
+            loadChatHistory();
+        }
+
+        function clearChatHistory() {
+            localStorage.removeItem('chatHistory');
+            loadChatHistory();
+            resetChat();
+        }
+
+        function performSearch(query) {
+            console.log('Performing search with query:', query);
+            fetch('/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'query=' + encodeURIComponent(query)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Received data:', data);
+                displayResults(data.results);
+                displayDebugInfo(data.debug_info);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                displayError(error.message);
+            });
+        }
+
+        function displayResults(results) {
+            const resultsList = document.getElementById('results-list');
+            resultsList.innerHTML = '';
+
+            if (results.length === 0) {
+                resultsList.innerHTML = '<li>No results found</li>';
+                return;
+            }
+
+            results.forEach(product => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <img src="${product.image_url}" alt="${product.name}">
+                    <strong>${product.name}</strong>
+                    <span>Categories: ${product.categories}</span>
+                    <span>Brand: ${product.brand}</span>
+                    <span>Price: ${product.prices}</span>
+                    <span>Rating: ${product.overall_rating}</span>
+                `;
+                resultsList.appendChild(li);
+            });
+        }
+
+        function displayDebugInfo(debugInfo) {
+            console.log('Debug Info:', debugInfo);
+            // You can add this information to the UI if needed
+        }
+
+        function displayError(message) {
+            const resultsList = document.getElementById('results-list');
+            resultsList.innerHTML = `<li class="error">Error: ${message}</li>`;
+        }
+    </script>
+</body>
+</html>
