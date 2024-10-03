@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify 
 from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
@@ -56,7 +56,6 @@ def query_products_mongo(keywords):
         'brand': 1,
         'prices.asins': 1,
         'overall_rating': 1,
-        'image': 1,
         'score': {'$meta': 'textScore'}
     }
     
@@ -75,11 +74,10 @@ def format_product(product):
     return {
         "name": product.get('TITLE', 'N/A'),
         "categories": product.get('PRODUCT_TYPE_ID', 'N/A'),
-        "brand": product.get('brand', 'N/A'),
-        "prices": product.get('prices', {}).get('asins', 'N/A'),
-        "overall_rating": product.get('overall_rating', 'N/A'),
-        "image_url": product.get('image', '/static/placeholder.png')
+        "price": product.get('prices', {}).get('asins', 'N/A'),
+        "overall_rating": product.get('overall_rating', 'N/A')
     }
+
 
 @app.route('/')
 def home():

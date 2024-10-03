@@ -301,13 +301,16 @@
             const fragment = document.createDocumentFragment();
             results.forEach(product => {
                 const li = document.createElement('li');
+                const imageHTML = product.image_url ? `<img src="${product.image_url}" alt="${product.name}" loading="lazy">` : '';
+                const price = product.price !== 'N/A' ? product.price : 'Price Not Available';
+                const rating = product.overall_rating !== 'N/A' ? product.overall_rating : 'Rating Not Available';
+
                 li.innerHTML = `
-                    <img src="${product.image_url}" alt="${product.name}" loading="lazy">
+                    ${imageHTML}
                     <strong>${product.name}</strong>
-                    <span>Categories: ${product.categories}</span>
-                    <span>Brand: ${product.brand}</span>
-                    <span>Price: ${product.prices}</span>
-                    <span>Rating: ${product.overall_rating}</span>
+                    <span>Category: ${product.categories}</span>
+                    <span>Price: ${price}</span>
+                    <span>Rating: ${rating}</span>
                 `;
                 fragment.appendChild(li);
             });
@@ -316,7 +319,7 @@
 
         function displayError(message) {
             const resultsList = document.getElementById('results-list');
-            resultsList.innerHTML = `<li style="color: #ff4444;">Error: ${message}</li>`;
+            resultsList.innerHTML = `<li>Error: ${message}</li>`;
         }
     </script>
 </body>
