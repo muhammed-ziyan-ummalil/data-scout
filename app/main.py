@@ -21,12 +21,12 @@ nltk.download('stopwords', quiet=True)
 load_dotenv()
 
 # Initialize Flask app with the correct static and template folders
-app = Flask(__name__, 
+app = Flask(__name__,
             static_folder=os.path.join(os.path.dirname(__file__), 'static'),
             template_folder=os.path.join(os.path.dirname(__file__), 'templates'))
 
 # Enable CORS for the app
-CORS(app)  # Enable CORS for all routes
+CORS(app)
 
 # Create a MongoDB client at the application level
 mongo_uri = os.getenv('MONGODB_URI', 'mongodb://localhost:27017')
@@ -120,6 +120,15 @@ def search():
     }
     
     return jsonify(response), 200
+
+@app.route('/db-check')
+def db_check():
+    """Route to check MongoDB connection."""
+    try:
+        client.server_info()  # Test MongoDB connection
+        return "DB connection successful", 200
+    except Exception as e:
+        return f"Error connecting to DB: {e}", 500
 
 if __name__ == '__main__':
     # Ensure the static/images directory exists
