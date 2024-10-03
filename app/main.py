@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify, url_for
+from flask_cors import CORS  # Import CORS
 from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
@@ -23,6 +24,9 @@ load_dotenv()
 app = Flask(__name__, 
             static_folder=os.path.join(os.path.dirname(__file__), 'static'),
             template_folder=os.path.join(os.path.dirname(__file__), 'templates'))
+
+# Enable CORS for the app
+CORS(app)  # Enable CORS for all routes
 
 # Create a MongoDB client at the application level
 mongo_uri = os.getenv('MONGODB_URI', 'mongodb://localhost:27017')
