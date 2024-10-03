@@ -1,5 +1,5 @@
-Flask
-pymongo
-python-dotenv
-nltk
-scikit-learn
+Flask==3.0.3
+pymongo==4.10.1
+nltk==3.9.1
+scikit-learn==1.5.2
+python-dotenv==1.0.1
