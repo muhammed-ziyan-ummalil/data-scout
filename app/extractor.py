@@ -1,50 +1,53 @@
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
-from transformers import pipeline
-import os
-from dotenv import load_dotenv
+from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import TfidfVectorizer
+import logging
 
-# Load environment variables
-load_dotenv()
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
 
-# Hugging Face keyword extraction model
-model_name = os.getenv('NER_MODEL', 'dslim/bert-base-NER')
-keyword_extractor = pipeline('ner', model=model_name)
-
-# Download required NLTK data
-nltk.download('punkt', quiet=True)
-nltk.download('stopwords', quiet=True)
+# Download necessary NLTK data (only if not already downloaded)
+try:
+    nltk.data.find('tokenizers/punkt')
+    nltk.data.find('corpora/stopwords')
+    nltk.data.find('corpora/wordnet')
+except LookupError:
+    nltk.download('punkt', quiet=True)
+    nltk.download('stopwords', quiet=True)
+    nltk.download('wordnet', quiet=True)
 
 stop_words = set(stopwords.words('english'))
-additional_stop_words = {'need', 'want', 'looking', 'for', 'with', 'has', 'have', 'a', 'an', 'the', 'and', 'or', 'but'}
-stop_words.update(additional_stop_words)
+lemmatizer = WordNetLemmatizer()
 
 def extract_keywords(text):
-    # Tokenize and clean text
-    tokens = word_tokenize(text.lower())
-    filtered_words = [word for word in tokens if word not in stop_words and word.isalnum()]
-    
-    if not filtered_words:
-        return tokens  # Return original tokens if no words remain after filtering
-    
-    # Use TF-IDF to identify important words
-    vectorizer = TfidfVectorizer(ngram_range=(1, 2), max_features=5)
-    tfidf_matrix = vectorizer.fit_transform([" ".join(filtered_words)])
-    feature_names = vectorizer.get_feature_names_out()
-    
-    # Get top TF-IDF scores
-    tfidf_scores = zip(feature_names, tfidf_matrix.toarray()[0])
-    sorted_scores = sorted(tfidf_scores, key=lambda x: x[1], reverse=True)
-    
-    # Combine TF-IDF keywords with NER results
-    ner_keywords = [kw['word'] for kw in keyword_extractor(" ".join(filtered_words))]
-    tfidf_keywords = [word for word, score in sorted_scores[:3]]  # Top 3 TF-IDF keywords
-    
-    combined_keywords = list(set(ner_keywords + tfidf_keywords))
-    
-    return combined_keywords if combined_keywords else filtered_words
+    """Extract keywords from the given text using TF-IDF."""
+    try:
+        # Tokenize and clean text
+        tokens = word_tokenize(text.lower())
+        filtered_words = [lemmatizer.lemmatize(word) for word in tokens if word not in stop_words and word.isalnum()]
+        
+        if not filtered_words:
+            logging.warning("No words remained after filtering. Returning original tokens.")
+            return tokens  # Return original tokens if no words remain after filtering
+        
+        # Use TF-IDF to identify important words
+        vectorizer = TfidfVectorizer(ngram_range=(1, 2), max_features=5)
+        tfidf_matrix = vectorizer.fit_transform([" ".join(filtered_words)])
+        feature_names = vectorizer.get_feature_names_out()
+        
+        # Get top TF-IDF scores
+        tfidf_scores = zip(feature_names, tfidf_matrix.toarray()[0])
+        sorted_scores = sorted(tfidf_scores, key=lambda x: x[1], reverse=True)
+        
+        keywords = [word for word, score in sorted_scores if score > 0]
+        
+        logging.info(f"Extracted keywords: {keywords}")
+        return keywords
+    except Exception as e:
+        logging.error(f"Error in keyword extraction: {str(e)}")
+        return []
 
 if __name__ == "__main__":
     user_input = input("Enter your product search query: ")

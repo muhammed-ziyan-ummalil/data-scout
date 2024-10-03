@@ -1,103 +1,113 @@
+from flask import Flask, render_template, request, jsonify
 from pymongo import MongoClient
+from dotenv import load_dotenv
 from app.extractor import extract_keywords
 import os
-from dotenv import load_dotenv
-import re
-from collections import Counter
+import nltk
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+
+# Download necessary NLTK data
+nltk.download('punkt', quiet=True)
+nltk.download('stopwords', quiet=True)
 
 # Load environment variables
 load_dotenv()
 
+app = Flask(__name__)
+
 def connect_to_mongodb():
+    """Connect to MongoDB using the environment variables."""
     mongo_uri = os.getenv('MONGODB_URI', 'mongodb://localhost:27017')
     client = MongoClient(mongo_uri)
     db_name = os.getenv('MONGODB_DB', 'data_scout')
     return client[db_name]
 
-def calculate_relevance_score(product, keywords):
-    score = 0
-    product_text = ' '.join(str(value) for value in product.values() if isinstance(value, (str, list)))
+def process_natural_language(query):
+    """Process the user query dynamically."""
+    tokens = word_tokenize(query.lower())
+    stop_words = set(stopwords.words('english'))
+    keywords = [word for word in tokens if word not in stop_words and word.isalnum()]
     
-    # Count occurrences of each keyword
-    keyword_counts = Counter(keyword.lower() for keyword in keywords)
-    
-    for keyword, count in keyword_counts.items():
-        matches = len(re.findall(re.escape(keyword), product_text, re.IGNORECASE))
-        score += matches * count  # Weight by keyword frequency
-    
-    # Boost score for matches in important fields
-    important_fields = ['name', 'brand', 'categories']
-    for field in important_fields:
-        if field in product:
-            for keyword in keywords:
-                if re.search(re.escape(keyword), str(product[field]), re.IGNORECASE):
-                    score += 2  # Additional points for matching important fields
-    
-    return score
+    logging.debug(f"Processed keywords: {keywords}")
+    return keywords
 
-def query_products_mongo(db, keywords):
+def query_products_mongo(db, query_info):
+    """Query MongoDB for products based on the dynamically processed query information."""
     products_collection = db['products']
     
-    # Simplified query using regex for keywords
-    query = {
-        "$or": [
-            {field: {"$regex": "|".join(keywords), "$options": "i"}} 
-            for field in ['name', 'brand', 'categories', 'keys']
-        ]
-    }
+    query = {"$text": {"$search": " ".join(query_info)}}
+    
+    logging.debug(f"MongoDB query: {query}")
     
     try:
-        results = list(products_collection.find(query).limit(50))  # Increase initial result set
-        
-        # Calculate relevance score for each product
-        for product in results:
-            product['relevance_score'] = calculate_relevance_score(product, keywords)
-        
-        # Sort results by relevance score, descending
-        sorted_results = sorted(results, key=lambda x: x['relevance_score'], reverse=True)
-        
-        return sorted_results[:10]  # Return top 10 results
+        results = list(products_collection.find(query, {'score': {'$meta': 'textScore'}})
+                       .sort([('score', {'$meta': 'textScore'})])
+                       .limit(20))
+        logging.debug(f"Query results count: {len(results)}")
+        return results
     except Exception as e:
-        print(f"Error querying MongoDB: {e}")
+        logging.error(f"Error querying MongoDB: {e}")
         return []
 
 def format_product(product):
-    return (
-        f"Product Name: {product.get('name', 'N/A')}\n"
-        f"Primary Categories: {product.get('primaryCategories', 'N/A')}\n"
-        f"Brand: {product.get('brand', 'N/A')}\n"
-        f"Price: {product.get('prices', {}).get('asins', 'N/A')}\n"
-        f"Rating: {product.get('overall_rating', 'N/A')}\n"
-        f"Relevance Score: {product.get('relevance_score', 0)}\n"
-        "========================================="
-    )
+    """Format product details for display."""
+    formatted = {
+        "name": product.get('TITLE', 'N/A'),
+        "categories": product.get('PRODUCT_TYPE_ID', 'N/A'),
+        "brand": product.get('brand', 'N/A'),
+        "prices": product.get('prices', {}).get('asins', 'N/A'),
+        "overall_rating": product.get('overall_rating', 'N/A'),
+        "score": product.get('score', 0),
+        "image_url": product.get('image', '/static/placeholder.png')
+    }
+    logging.debug(f"Formatted product: {formatted}")
+    return formatted
 
-def main():
+@app.route('/')
+def home():
+    """Render the homepage."""
+    return render_template('index.html')
+
+@app.route('/search', methods=['POST'])
+def search():
+    """Handle natural language search queries and return product results."""
+    user_query = request.form.get('query', '')
+    logging.info(f"Received search query: {user_query}")
+    
+    if not user_query:
+        logging.warning("No query received.")
+        return jsonify({"error": "No query provided"}), 400
+
     db = connect_to_mongodb()
-    print("Welcome to Data Scout - Your Natural Language Product Search Assistant!")
-    print("Type 'quit' at any time to exit.")
+    
+    # Process the natural language query
+    query_info = process_natural_language(user_query)
+    logging.info(f"Processed query info: {query_info}")
+    
+    # Query the MongoDB to get relevant products
+    products = query_products_mongo(db, query_info)
+    formatted_products = [format_product(product) for product in products]
+    
+    if not formatted_products:
+        logging.info("No products found.")
+        return jsonify({"results": [], "message": "No products found"}), 404
+    
+    response = {
+        "results": formatted_products,
+        "debug_info": {
+            "query": user_query,
+            "processed_query": query_info,
+            "result_count": len(formatted_products)
+        }
+    }
+    
+    logging.info(f"Sending response: {response}")
+    return jsonify(response), 200
 
-    while True:
-        user_input = input("\nWhat product are you looking for? ").strip()
-        if user_input.lower() == 'quit':
-            print("Thank you for using Data Scout. Goodbye!")
-            break
-
-        keywords = extract_keywords(user_input)
-        if not keywords:
-            print("I couldn't extract any meaningful keywords. Could you please rephrase your query?")
-            continue
-
-        print("Extracted keywords:", keywords)
-
-        products = query_products_mongo(db, keywords)
-
-        if products:
-            print(f"\nFound {len(products)} matching products:")
-            for product in products:
-                print(format_product(product))
-        else:
-            print("No matching products found. Try different search terms.")
-
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    app.run(debug=True)
