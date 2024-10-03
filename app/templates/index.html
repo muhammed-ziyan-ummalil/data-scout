@@ -44,28 +44,20 @@
         .chat-session li:hover, .chat-session li.active {
             background-color: #FF8C00;
         }
-        .chat-session li span {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .chat-session li.active span {
-            font-weight: bold;
-        }
-        .container {
+        .main-container {
             width: 80%;
-            padding: 30px;
             display: flex;
             flex-direction: column;
-            justify-content: flex-start;
-            align-items: center;
+            height: 100vh;
+        }
+        .content-area {
+            flex-grow: 1;
             overflow-y: auto;
+            padding: 30px;
         }
         .logo {
+            text-align: center;
             margin-bottom: 30px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
         }
         .logo img {
             max-width: 120px;
@@ -74,35 +66,77 @@
             color: #FF8C00;
             font-weight: bold;
         }
-        .search-box {
+        .results {
             width: 100%;
-            max-width: 600px;
-            margin: 20px 0;
         }
-        input[type="text"] {
-            width: 100%;
+        .results h2 {
+            margin-bottom: 15px;
+        }
+        .results ul {
+            list-style: none;
+            padding: 0;
+        }
+        .result-item {
+            padding: 15px;
+            background-color: #2A2A3D;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        .result-item img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-right: 15px;
+        }
+        .result-info {
+            flex-grow: 1;
+        }
+        .result-info strong {
+            color: #FF8C00;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .search-container {
+            padding: 20px;
+            background-color: #2A2A3D;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .search-container input[type="text"] {
+            flex-grow: 1;
             padding: 15px;
             font-size: 1.2em;
             border-radius: 8px;
             border: none;
-            background-color: #2A2A3D;
+            background-color: #1E1E2F;
             color: #ffffff;
         }
-        input[type="submit"], .clear-history {
-            padding: 12px 25px;
+        .search-container button {
+            padding: 15px 25px;
             background-color: #FF8C00;
             color: #fff;
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             font-size: 1.2em;
             cursor: pointer;
             transition: background-color 0.3s ease;
         }
-        input[type="submit"]:hover, .clear-history:hover {
+        .search-container button:hover {
             background-color: #f57c00;
         }
+        .loading-indicator {
+            display: none;
+            color: #FF8C00;
+            font-size: 1.2em;
+            text-align: center;
+            margin: 20px 0;
+        }
         .start-new-chat, .clear-history {
-            margin-top: 20px;
+            margin-top: 10px;
             padding: 10px 20px;
             background-color: #FF8C00;
             color: #fff;
@@ -114,76 +148,38 @@
         .start-new-chat:hover, .clear-history:hover {
             background-color: #f57c00;
         }
-        .results {
-            width: 100%;
-            margin-top: 20px;
-        }
-        .results h2 {
-            margin-bottom: 15px;
-        }
-        .results ul {
-            list-style: none;
-            padding: 0;
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-        }
-        .results li {
-            padding: 15px;
-            background-color: #2A2A3D;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-        }
-        .results li strong {
-            color: #FF8C00;
-            margin-bottom: 10px;
-        }
-        .results li img {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-        .loading-indicator {
-            display: none;
-            color: #FF8C00;
-            font-size: 1.2em;
-            margin-top: 20px;
-        }
     </style>
 </head>
 <body>
     <div class="sidebar">
         <h2>DataScout</h2>
         <ul id="chat-history" class="chat-session">
-            <!-- Chat sessions (queries) will appear here -->
+            <!-- Chat sessions will appear here -->
         </ul>
         <button class="start-new-chat" id="start-new-chat">Start New Chat</button>
         <button class="clear-history" id="clear-history">Clear History</button>
     </div>
 
-    <div class="container">
-        <div class="logo">
-            <img src="/api/placeholder/120/120" alt="DataScout Logo">
-            <h1>Search <span style="color:#FF8C00;">Less</span>, Find <span style="color:#FF8C00;">More</span></h1>
+    <div class="main-container">
+        <div class="content-area">
+            <div class="logo">
+                <img src="/api/placeholder/120/120" alt="DataScout Logo">
+                <h1>Search <span style="color:#FF8C00;">Less</span>, Find <span style="color:#FF8C00;">More</span></h1>
+            </div>
+            
+            <div class="loading-indicator" id="loading-indicator">Searching...</div>
+
+            <div class="results" id="results">
+                <h2>Results:</h2>
+                <ul id="results-list">
+                    <!-- Search results will be inserted here -->
+                </ul>
+            </div>
         </div>
         
-        <div class="search-box">
-            <form id="search-form" method="POST" action="/search">
-                <input type="text" id="query-input" name="query" placeholder="Describe the product you're looking for..." required>
-                <input type="submit" value="Search">
-            </form>
-        </div>
-
-        <div class="loading-indicator" id="loading-indicator">Searching...</div>
-
-        <div class="results" id="results">
-            <h2>Results:</h2>
-            <ul id="results-list">
-                <!-- Search results will be inserted here -->
-            </ul>
+        <div class="search-container">
+            <input type="text" id="query-input" placeholder="Describe the product you're looking for..." required>
+            <button id="search-button">Search</button>
         </div>
     </div>
 
@@ -191,12 +187,24 @@
         document.addEventListener('DOMContentLoaded', function() {
             loadChatHistory();
 
-            // Handle form submission
-            document.getElementById('search-form').addEventListener('submit', function(event) {
-                event.preventDefault();
+            // Handle search button click
+            document.getElementById('search-button').addEventListener('click', function() {
                 const query = document.getElementById('query-input').value;
-                saveChatHistory(query);
-                performSearch(query);
+                if (query.trim()) {
+                    saveChatHistory(query);
+                    performSearch(query);
+                }
+            });
+
+            // Handle Enter key in input field
+            document.getElementById('query-input').addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    const query = this.value;
+                    if (query.trim()) {
+                        saveChatHistory(query);
+                        performSearch(query);
+                    }
+                }
             });
 
             // Handle start new chat button
@@ -226,8 +234,8 @@
         function saveChatHistory(query) {
             const chatHistory = JSON.parse(localStorage.getItem('chatHistory')) || [];
             if (!chatHistory.includes(query)) {
-                chatHistory.unshift(query); // Add new query to the beginning
-                if (chatHistory.length > 10) chatHistory.pop(); // Keep only last 10 queries
+                chatHistory.unshift(query);
+                if (chatHistory.length > 10) chatHistory.pop();
                 localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
             }
             loadChatHistory();
@@ -258,7 +266,6 @@
             loadingIndicator.style.display = 'block';
             resultsList.innerHTML = '';
 
-            // Add timeout to notify user of long delays
             const timeoutId = setTimeout(() => {
                 loadingIndicator.textContent = 'This is taking longer than expected. Please wait...';
             }, 5000);
@@ -294,32 +301,37 @@
             resultsList.innerHTML = '';
 
             if (!results || results.length === 0) {
-                resultsList.innerHTML = '<li>No results found</li>';
+                resultsList.innerHTML = '<li class="result-item">No results found</li>';
                 return;
             }
 
-            const fragment = document.createDocumentFragment();
             results.forEach(product => {
                 const li = document.createElement('li');
-                const imageHTML = product.image_url ? `<img src="${product.image_url}" alt="${product.name}" loading="lazy">` : '';
+                li.className = 'result-item';
+                
+                const imageHTML = product.image_url ? 
+                    `<img src="${product.image_url}" alt="${product.name}" loading="lazy">` : 
+                    `<img src="/api/placeholder/100/100" alt="No image available">`;
+                
                 const price = product.price !== 'N/A' ? product.price : 'Price Not Available';
                 const rating = product.overall_rating !== 'N/A' ? product.overall_rating : 'Rating Not Available';
 
                 li.innerHTML = `
                     ${imageHTML}
-                    <strong>${product.name}</strong>
-                    <span>Category: ${product.categories}</span>
-                    <span>Price: ${price}</span>
-                    <span>Rating: ${rating}</span>
+                    <div class="result-info">
+                        <strong>${product.name}</strong>
+                        <span>Category: ${product.categories}</span>
+                        <span>Price: ${price}</span>
+                        <span>Rating: ${rating}</span>
+                    </div>
                 `;
-                fragment.appendChild(li);
+                resultsList.appendChild(li);
             });
-            resultsList.appendChild(fragment);
         }
 
         function displayError(message) {
             const resultsList = document.getElementById('results-list');
-            resultsList.innerHTML = `<li>Error: ${message}</li>`;
+            resultsList.innerHTML = `<li class="result-item">Error: ${message}</li>`;
         }
     </script>
 </body>
