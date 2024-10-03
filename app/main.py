@@ -1,17 +1,17 @@
 from flask import Flask, render_template, request, jsonify
 from pymongo import MongoClient
 from dotenv import load_dotenv
-from app.extractor import extract_keywords
 import os
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 import logging
+from functools import lru_cache
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
-# Download necessary NLTK data
+# Download necessary NLTK data at startup
 nltk.download('punkt', quiet=True)
 nltk.download('stopwords', quiet=True)
 
@@ -20,35 +20,47 @@ load_dotenv()
 
 app = Flask(__name__)
 
-def connect_to_mongodb():
-    """Connect to MongoDB using the environment variables."""
-    mongo_uri = os.getenv('MONGODB_URI', 'mongodb://localhost:27017')
-    client = MongoClient(mongo_uri)
-    db_name = os.getenv('MONGODB_DB', 'data_scout')
-    return client[db_name]
+# Create a MongoDB client at the application level
+mongo_uri = os.getenv('MONGODB_URI', 'mongodb://localhost:27017')
+client = MongoClient(mongo_uri)
+db_name = os.getenv('MONGODB_DB', 'data_scout')
+db = client[db_name]
 
+# Cache the stopwords
+STOP_WORDS = set(stopwords.words('english'))
+
+@lru_cache(maxsize=1000)
 def process_natural_language(query):
-    """Process the user query dynamically."""
+    """Process and cache the user query."""
     tokens = word_tokenize(query.lower())
-    stop_words = set(stopwords.words('english'))
-    keywords = [word for word in tokens if word not in stop_words and word.isalnum()]
-    
-    logging.debug(f"Processed keywords: {keywords}")
+    keywords = [word for word in tokens if word not in STOP_WORDS and word.isalnum()]
     return keywords
 
-def query_products_mongo(db, query_info):
-    """Query MongoDB for products based on the dynamically processed query information."""
+def query_products_mongo(keywords):
+    """Optimized MongoDB query using existing text index."""
     products_collection = db['products']
     
-    query = {"$text": {"$search": " ".join(query_info)}}
+    query = {
+        "$text": {
+            "$search": " ".join(keywords)
+        }
+    }
     
-    logging.debug(f"MongoDB query: {query}")
+    projection = {
+        'TITLE': 1,
+        'PRODUCT_TYPE_ID': 1,
+        'brand': 1,
+        'prices.asins': 1,
+        'overall_rating': 1,
+        'image': 1,
+        'score': {'$meta': 'textScore'}
+    }
     
     try:
-        results = list(products_collection.find(query, {'score': {'$meta': 'textScore'}})
-                       .sort([('score', {'$meta': 'textScore'})])
-                       .limit(20))
-        logging.debug(f"Query results count: {len(results)}")
+        results = list(products_collection.find(
+            query,
+            projection
+        ).sort([('score', {'$meta': 'textScore'})]).limit(20))
         return results
     except Exception as e:
         logging.error(f"Error querying MongoDB: {e}")
@@ -56,46 +68,35 @@ def query_products_mongo(db, query_info):
 
 def format_product(product):
     """Format product details for display."""
-    formatted = {
+    return {
         "name": product.get('TITLE', 'N/A'),
         "categories": product.get('PRODUCT_TYPE_ID', 'N/A'),
         "brand": product.get('brand', 'N/A'),
         "prices": product.get('prices', {}).get('asins', 'N/A'),
         "overall_rating": product.get('overall_rating', 'N/A'),
-        "score": product.get('score', 0),
         "image_url": product.get('image', '/static/placeholder.png')
     }
-    logging.debug(f"Formatted product: {formatted}")
-    return formatted
 
 @app.route('/')
 def home():
-    """Render the homepage."""
     return render_template('index.html')
 
 @app.route('/search', methods=['POST'])
 def search():
-    """Handle natural language search queries and return product results."""
-    user_query = request.form.get('query', '')
-    logging.info(f"Received search query: {user_query}")
+    user_query = request.form.get('query', '').strip()
     
     if not user_query:
-        logging.warning("No query received.")
         return jsonify({"error": "No query provided"}), 400
 
-    db = connect_to_mongodb()
-    
-    # Process the natural language query
+    # Process and cache the query
     query_info = process_natural_language(user_query)
-    logging.info(f"Processed query info: {query_info}")
     
-    # Query the MongoDB to get relevant products
-    products = query_products_mongo(db, query_info)
+    if not query_info:
+        return jsonify({"results": [], "message": "Invalid query"}), 400
+    
+    # Query MongoDB
+    products = query_products_mongo(query_info)
     formatted_products = [format_product(product) for product in products]
-    
-    if not formatted_products:
-        logging.info("No products found.")
-        return jsonify({"results": [], "message": "No products found"}), 404
     
     response = {
         "results": formatted_products,
@@ -106,7 +107,6 @@ def search():
         }
     }
     
-    logging.info(f"Sending response: {response}")
     return jsonify(response), 200
 
 if __name__ == '__main__':

@@ -116,7 +116,10 @@
         }
         .results {
             width: 100%;
-            margin-top: 30px;
+            margin-top: 20px;
+        }
+        .results h2 {
+            margin-bottom: 15px;
         }
         .results ul {
             list-style: none;
@@ -143,6 +146,12 @@
             border-radius: 8px;
             margin-bottom: 10px;
         }
+        .loading-indicator {
+            display: none;
+            color: #FF8C00;
+            font-size: 1.2em;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -167,6 +176,8 @@
                 <input type="submit" value="Search">
             </form>
         </div>
+
+        <div class="loading-indicator" id="loading-indicator">Searching...</div>
 
         <div class="results" id="results">
             <h2>Results:</h2>
@@ -215,7 +226,8 @@
         function saveChatHistory(query) {
             const chatHistory = JSON.parse(localStorage.getItem('chatHistory')) || [];
             if (!chatHistory.includes(query)) {
-                chatHistory.push(query);
+                chatHistory.unshift(query); // Add new query to the beginning
+                if (chatHistory.length > 10) chatHistory.pop(); // Keep only last 10 queries
                 localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
             }
             loadChatHistory();
@@ -240,7 +252,17 @@
         }
 
         function performSearch(query) {
-            console.log('Performing search with query:', query);
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const resultsList = document.getElementById('results-list');
+            
+            loadingIndicator.style.display = 'block';
+            resultsList.innerHTML = '';
+
+            // Add timeout to notify user of long delays
+            const timeoutId = setTimeout(() => {
+                loadingIndicator.textContent = 'This is taking longer than expected. Please wait...';
+            }, 5000);
+
             fetch('/search', {
                 method: 'POST',
                 headers: {
@@ -249,17 +271,19 @@
                 body: 'query=' + encodeURIComponent(query)
             })
             .then(response => {
+                clearTimeout(timeoutId);
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
                 }
                 return response.json();
             })
             .then(data => {
-                console.log('Received data:', data);
+                loadingIndicator.style.display = 'none';
                 displayResults(data.results);
-                displayDebugInfo(data.debug_info);
             })
             .catch(error => {
+                clearTimeout(timeoutId);
+                loadingIndicator.style.display = 'none';
                 console.error('Error:', error);
                 displayError(error.message);
             });
@@ -269,33 +293,30 @@
             const resultsList = document.getElementById('results-list');
             resultsList.innerHTML = '';
 
-            if (results.length === 0) {
+            if (!results || results.length === 0) {
                 resultsList.innerHTML = '<li>No results found</li>';
                 return;
             }
 
+            const fragment = document.createDocumentFragment();
             results.forEach(product => {
                 const li = document.createElement('li');
                 li.innerHTML = `
-                    <img src="${product.image_url}" alt="${product.name}">
+                    <img src="${product.image_url}" alt="${product.name}" loading="lazy">
                     <strong>${product.name}</strong>
                     <span>Categories: ${product.categories}</span>
                     <span>Brand: ${product.brand}</span>
                     <span>Price: ${product.prices}</span>
                     <span>Rating: ${product.overall_rating}</span>
                 `;
-                resultsList.appendChild(li);
+                fragment.appendChild(li);
             });
-        }
-
-        function displayDebugInfo(debugInfo) {
-            console.log('Debug Info:', debugInfo);
-            // You can add this information to the UI if needed
+            resultsList.appendChild(fragment);
         }
 
         function displayError(message) {
             const resultsList = document.getElementById('results-list');
-            resultsList.innerHTML = `<li class="error">Error: ${message}</li>`;
+            resultsList.innerHTML = `<li style="color: #ff4444;">Error: ${message}</li>`;
         }
     </script>
 </body>
