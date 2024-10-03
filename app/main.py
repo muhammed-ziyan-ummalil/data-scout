@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify 
+from flask import Flask, render_template, request, jsonify, url_for
 from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
@@ -19,7 +19,10 @@ nltk.download('stopwords', quiet=True)
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__)
+# Initialize Flask app with the correct static and template folders
+app = Flask(__name__, 
+            static_folder=os.path.join(os.path.dirname(__file__), 'static'),
+            template_folder=os.path.join(os.path.dirname(__file__), 'templates'))
 
 # Create a MongoDB client at the application level
 mongo_uri = os.getenv('MONGODB_URI', 'mongodb://localhost:27017')
@@ -30,7 +33,7 @@ db = client[db_name]
 # Cache the stopwords
 STOP_WORDS = set(stopwords.words('english'))
 
-# Create a thread pool
+# Create a thread pool executor
 executor = ThreadPoolExecutor(max_workers=4)
 
 @lru_cache(maxsize=1000)
@@ -53,7 +56,6 @@ def query_products_mongo(keywords):
     projection = {
         'TITLE': 1,
         'PRODUCT_TYPE_ID': 1,
-        'brand': 1,
         'prices.asins': 1,
         'overall_rating': 1,
         'score': {'$meta': 'textScore'}
@@ -78,13 +80,14 @@ def format_product(product):
         "overall_rating": product.get('overall_rating', 'N/A')
     }
 
-
 @app.route('/')
 def home():
+    """Render the home page."""
     return render_template('index.html')
 
 @app.route('/search', methods=['POST'])
 def search():
+    """Handle search requests."""
     user_query = request.form.get('query', '').strip()
     
     if not user_query:
@@ -115,4 +118,12 @@ def search():
     return jsonify(response), 200
 
 if __name__ == '__main__':
+    # Ensure the static/images directory exists
+    os.makedirs(os.path.join(app.static_folder, 'images'), exist_ok=True)
+    
+    # Check for logo file
+    logo_path = os.path.join(app.static_folder, 'images', 'logo.png')
+    if not os.path.exists(logo_path):
+        logging.warning(f"Logo file not found at {logo_path}. Please add a logo image.")
+    
     app.run(debug=True)
