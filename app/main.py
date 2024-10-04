@@ -9,6 +9,41 @@ from nltk.corpus import stopwords
 import logging
 from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor
+# Add this near the top of your main.py file, before any NLTK operations
+
+import os
+import nltk
+
+# Define multiple possible paths for NLTK data
+nltk_data_paths = [
+    os.path.join(os.getcwd(), 'nltk_data'),  # Local to the app
+    os.path.expanduser('~/nltk_data'),       # User's home directory
+    '/app/nltk_data',                        # Common path in containerized environments
+]
+
+# Add all possible paths
+for path in nltk_data_paths:
+    if path not in nltk.data.path:
+        nltk.data.path.append(path)
+
+# Function to verify NLTK data
+def verify_nltk_data():
+    required_packages = ['punkt', 'stopwords']
+    missing_packages = []
+    
+    for package in required_packages:
+        try:
+            nltk.data.find(f'tokenizers/{package}')
+        except LookupError:
+            missing_packages.append(package)
+    
+    return missing_packages
+
+# Call this function when your app starts
+missing_packages = verify_nltk_data()
+if missing_packages:
+    print(f"Warning: Missing NLTK packages: {missing_packages}")
+    print(f"NLTK data paths: {nltk.data.path}")
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
